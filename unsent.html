@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Angel's Unsent Message</title>
+<style>
+:root{--bg:#fff;--fg:#202122;--mut:#54595d;--link:#0645ad;--line:#a2a9b1;--box:#f8f9fa;--head:#eaecf0}
+@media (prefers-color-scheme:dark){:root{--bg:#101418;--fg:#eaecf0;--mut:#a2a9b1;--link:#6b9ef5;--line:#3a4048;--box:#1a1f25;--head:#27303a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 system-ui,"Segoe UI",sans-serif}
+a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}
+header.top{border-bottom:1px solid var(--line);padding:10px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:13px;color:var(--mut)}
+.btn,button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--box);color:var(--fg);padding:3px 10px;border-radius:3px;cursor:pointer}
+.btn{font-weight:600;color:var(--link)}
+main{max-width:980px;margin:0 auto;padding:16px 20px 40px}
+h1{font:400 1.9rem/1.2 Georgia,serif;border-bottom:1px solid var(--line);margin:8px 0 6px;padding-bottom:4px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:14px}
+.lock{border:1px solid var(--line);background:var(--box);padding:12px;margin:12px 0;font-size:14px}
+.lock label{display:block;margin:6px 0 2px;font-size:13px;color:var(--mut)}
+.lock input,.lock textarea,.lock select{width:100%;max-width:520px;font:inherit;padding:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.lock textarea{min-height:110px}
+.hide{display:none}
+.msg{font-size:12px;color:var(--mut);margin-top:6px}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-top:16px}
+.card{padding:14px;border-radius:4px;color:#1b1b1b;position:relative;min-height:130px;display:flex;flex-direction:column;gap:8px;overflow-wrap:anywhere}
+.card .to{font-weight:700;font-size:15px}
+.card .txt{white-space:pre-wrap;font-size:14px}
+.card .dt{font-size:11px;opacity:.7;margin-top:auto}
+.card .del{position:absolute;top:6px;right:6px;font-size:11px;padding:0 6px;background:rgba(255,255,255,.6);color:#222}
+footer{border-top:1px solid var(--line);margin-top:30px;padding-top:10px;font-size:12px;color:var(--mut)}
+</style>
+</head>
+<body>
+<header class="top"><span><a href="index.html">Main page</a> · <b>Unsent message</b></span><button id="lockBtn" type="button">Log in to write</button></header>
+<main>
+<h1>Angel's Unsent Message</h1>
+<div class="sub">Things left unsaid. Anyone can read them, only Angel can add them.</div>
+
+<div id="login" class="hide"><div class="lock">
+  <b>Log in</b>
+  <label for="gu">GitHub username</label><input id="gu" autocomplete="off">
+  <label for="gr">Repository name</label><input id="gr" autocomplete="off">
+  <label for="gt">Access token (this is your password)</label><input id="gt" type="password" autocomplete="off">
+  <p><button id="loginGo" type="button">Log in</button> <span id="loginMsg" class="msg"></span></p>
+</div></div>
+
+<div id="composer" class="hide"><div class="lock">
+  <b>Write an unsent message</b>
+  <label for="to">To (name)</label><input id="to" maxlength="40">
+  <label for="tx">Message</label><textarea id="tx" maxlength="1500"></textarea>
+  <p><button id="send" type="button">Post message</button> <button id="out" type="button">Log out</button> <span id="sendMsg" class="msg"></span></p>
+</div></div>
+
+<div id="grid"></div>
+<p id="empty" class="msg hide">No messages yet.</p>
+<footer>Messages are stored in <code>messages.json</code> in this site's GitHub repository.</footer>
+</main>
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)},K='angelUnsentCfg',cfg=null,msgs=[];
+try{cfg=JSON.parse(localStorage.getItem(K)||'null')}catch(e){}
+
+function hue(n){var h=0;n=n.toLowerCase();for(var i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))%360;return h}
+function render(){
+  var g=$('grid');g.innerHTML='';
+  $('empty').classList.toggle('hide',msgs.length>0);
+  msgs.slice().reverse().forEach(function(m){
+    var c=document.createElement('div');c.className='card';
+    c.style.background='hsl('+hue(m.to||'')+',70%,82%)';
+    var a=document.createElement('div');a.className='to';a.textContent='To: '+(m.to||'Someone');
+    var b=document.createElement('div');b.className='txt';b.textContent=m.text;
+    var d=document.createElement('div');d.className='dt';d.textContent=new Date(m.date).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+    c.append(a,b,d);
+    if(cfg){var x=document.createElement('button');x.className='del';x.textContent='delete';x.onclick=function(){if(confirm('Delete this message?'))save(function(l){return l.filter(function(y){return y.id!==m.id})},'Deleted.')};c.append(x)}
+    g.append(c);
+  });
+}
+function load(){
+  fetch('messages.json?'+Date.now()).then(function(r){if(!r.ok)throw 0;return r.json()})
+  .then(function(j){msgs=Array.isArray(j)?j:[];render()})
+  .catch(function(){msgs=[];render();$('empty').textContent='Could not load messages.json. If you opened the file straight from your computer, publish the site (e.g. GitHub Pages) and try again.'});
+}
+function ui(){
+  $('composer').classList.toggle('hide',!cfg);
+  $('login').classList.add('hide');
+  $('lockBtn').textContent=cfg?'Logged in':'Log in to write';
+  render();
+}
+function b64(s){var b=new TextEncoder().encode(s),r='';b.forEach(function(x){r+=String.fromCharCode(x)});return btoa(r)}
+function unb64(s){var r=atob(s.replace(/\s/g,'')),a=new Uint8Array(r.length);for(var i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return new TextDecoder().decode(a)}
+function save(mut,okMsg){
+  var url='https://api.github.com/repos/'+cfg.u+'/'+cfg.r+'/contents/messages.json',
+      H={Authorization:'Bearer '+cfg.t,Accept:'application/vnd.github+json'};
+  $('sendMsg').textContent='Saving...';
+  return fetch(url,{headers:H}).then(function(r){
+    if(r.status===404)return{list:[],sha:undefined};
+    if(!r.ok)throw new Error(r.status===401||r.status===403?'Wrong or expired token.':'GitHub error '+r.status);
+    return r.json().then(function(j){var l=[];try{l=JSON.parse(unb64(j.content))}catch(e){}return{list:l,sha:j.sha}});
+  }).then(function(cur){
+    var next=mut(cur.list),body={message:'Update unsent messages',content:b64(JSON.stringify(next,null,2)+'\n')};
+    if(cur.sha)body.sha=cur.sha;
+    return fetch(url,{method:'PUT',headers:H,body:JSON.stringify(body)}).then(function(r){
+      if(!r.ok)throw new Error('Could not save (GitHub error '+r.status+'). The token needs Contents: read and write access.');
+      msgs=next;render();$('sendMsg').textContent=okMsg+' (the public site may take a minute to update)';
+    });
+  }).catch(function(e){$('sendMsg').textContent=e.message});
+}
+$('lockBtn').onclick=function(){
+  if(cfg)return;
+  var h=location.hostname.split('.'),p=location.pathname.split('/')[1]||'';
+  if(/github\.io$/.test(location.hostname)){$('gu').value=$('gu').value||h[0];$('gr').value=$('gr').value||p}
+  $('login').classList.toggle('hide');
+};
+$('loginGo').onclick=function(){
+  var u=$('gu').value.trim(),r=$('gr').value.trim(),t=$('gt').value.trim();
+  if(!u||!r||!t){$('loginMsg').textContent='Fill in all three fields.';return}
+  $('loginMsg').textContent='Checking...';
+  fetch('https://api.github.com/repos/'+u+'/'+r,{headers:{Authorization:'Bearer '+t}}).then(function(x){
+    if(!x.ok)throw 0;return x.json();
+  }).then(function(j){
+    if(!j.permissions||!j.permissions.push)throw 0;
+    cfg={u:u,r:r,t:t};try{localStorage.setItem(K,JSON.stringify(cfg))}catch(e){}
+    $('gt').value='';$('loginMsg').textContent='';ui();
+  }).catch(function(){$('loginMsg').textContent='Login failed. Check the username, repository and token.'});
+};
+$('out').onclick=function(){cfg=null;try{localStorage.removeItem(K)}catch(e){}ui()};
+$('send').onclick=function(){
+  var to=$('to').value.trim(),tx=$('tx').value.trim();
+  if(!to||!tx){$('sendMsg').textContent='Add a name and a message.';return}
+  var m={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),to:to,text:tx,date:new Date().toISOString()};
+  save(function(l){l.push(m);return l},'Posted.').then(function(){if($('sendMsg').textContent.indexOf('Posted')===0){$('to').value='';$('tx').value=''}});
+};
+ui();load();
+})();
+</script>
+</body>
+</html>
